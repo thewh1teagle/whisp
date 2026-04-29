@@ -21,6 +21,9 @@ from src.tokenization import DEFAULT_AUDIO_VOCAB_SIZE
 from src.tokenization import format_prompt
 
 
+SNAC_TOKENS_PER_SECOND = 87.5
+
+
 class AudioTokenLogitsProcessor(LogitsProcessor):
     def __init__(
         self,
@@ -68,7 +71,17 @@ def parse_args():
     parser.add_argument("--num-speakers", type=int, required=True)
     parser.add_argument("--output", type=str, default="output.wav")
     parser.add_argument("--max-new-tokens", type=int, default=1024)
+    parser.add_argument(
+        "--max-seconds",
+        type=float,
+        default=None,
+        help="Optional hard cap for generated audio duration. Overrides --max-new-tokens when set.",
+    )
     parser.add_argument("--temperature", type=float, default=0.8)
+    parser.add_argument("--top-p", type=float, default=1.0)
+    parser.add_argument("--top-k", type=int, default=50)
+    parser.add_argument("--repetition-penalty", type=float, default=1.0)
+    parser.add_argument("--no-repeat-ngram-size", type=int, default=0)
     parser.add_argument("--language", type=str, default="en-us")
     parser.add_argument("--phonemes", action="store_true", help="Treat --text as already-phonemized input")
     parser.add_argument(
@@ -120,6 +133,10 @@ def main() -> None:
     phonemes = args.text if args.phonemes else phonemize_text(args.text, language=args.language)
     prompt = format_prompt(args.speaker_id, phonemes)
     input_ids = torch.tensor([tokenizer.encode(prompt).ids], dtype=torch.long, device=device)
+    max_new_tokens = args.max_new_tokens
+    if args.max_seconds is not None:
+        max_new_tokens = max(7, int(args.max_seconds * SNAC_TOKENS_PER_SECOND))
+        max_new_tokens -= max_new_tokens % 7
     logits_processor = None
     if args.constrained_decode:
         logits_processor = [
@@ -133,9 +150,13 @@ def main() -> None:
     with torch.inference_mode():
         generated = model.generate(
             input_ids=input_ids,
-            max_new_tokens=args.max_new_tokens,
+            max_new_tokens=max_new_tokens,
             do_sample=args.temperature > 0,
             temperature=args.temperature,
+            top_p=args.top_p,
+            top_k=args.top_k,
+            repetition_penalty=args.repetition_penalty,
+            no_repeat_ngram_size=args.no_repeat_ngram_size,
             logits_processor=logits_processor,
             pad_token_id=tokenizer.token_to_id("<pad>"),
             eos_token_id=tokenizer.token_to_id("</s>"),
