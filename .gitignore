@@ -13,3 +13,4 @@ wheels/
 *.wav
 data/
 outputs/
+dataset/.cache/
