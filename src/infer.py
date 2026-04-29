@@ -11,12 +11,53 @@ if str(ROOT) not in sys.path:
 
 import numpy as np
 import torch
+from transformers import LogitsProcessor
 from tokenizers import Tokenizer
 
 from src.checkpoint import load_checkpoint
 from src.codec import SAMPLE_RATE, decode
 from src.phonemize import phonemize_text
+from src.tokenization import DEFAULT_AUDIO_VOCAB_SIZE
 from src.tokenization import format_prompt
+
+
+class AudioTokenLogitsProcessor(LogitsProcessor):
+    def __init__(
+        self,
+        *,
+        tokenizer: Tokenizer,
+        prompt_length: int,
+        min_audio_tokens: int,
+        audio_vocab_size: int = DEFAULT_AUDIO_VOCAB_SIZE,
+    ) -> None:
+        self.prompt_length = prompt_length
+        self.min_audio_tokens = min_audio_tokens
+
+        allowed_tokens = []
+        for audio_id in range(audio_vocab_size):
+            token_id = tokenizer.token_to_id(f"<audio_{audio_id}>")
+            if token_id is not None:
+                allowed_tokens.append(token_id)
+
+        self.stop_token_ids = [
+            token_id
+            for token in ("</audio>", "</s>")
+            if (token_id := tokenizer.token_to_id(token)) is not None
+        ]
+        self.audio_token_ids = allowed_tokens
+        self.allowed_token_ids = allowed_tokens + self.stop_token_ids
+        if not self.audio_token_ids:
+            raise ValueError("Tokenizer does not contain audio tokens")
+        if not self.stop_token_ids:
+            raise ValueError("Tokenizer does not contain audio stop tokens")
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        generated = input_ids.shape[1] - self.prompt_length
+        allowed = self.allowed_token_ids if generated >= self.min_audio_tokens else self.audio_token_ids
+
+        constrained = torch.full_like(scores, -torch.inf)
+        constrained[:, allowed] = scores[:, allowed]
+        return constrained
 
 
 def parse_args():
@@ -30,6 +71,18 @@ def parse_args():
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--language", type=str, default="en-us")
     parser.add_argument("--phonemes", action="store_true", help="Treat --text as already-phonemized input")
+    parser.add_argument(
+        "--constrained-decode",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Restrict generation to SNAC audio tokens plus audio/end stop tokens.",
+    )
+    parser.add_argument(
+        "--min-audio-tokens",
+        type=int,
+        default=7,
+        help="Minimum generated audio tokens before stop tokens are allowed.",
+    )
     return parser.parse_args()
 
 
@@ -67,6 +120,15 @@ def main() -> None:
     phonemes = args.text if args.phonemes else phonemize_text(args.text, language=args.language)
     prompt = format_prompt(args.speaker_id, phonemes)
     input_ids = torch.tensor([tokenizer.encode(prompt).ids], dtype=torch.long, device=device)
+    logits_processor = None
+    if args.constrained_decode:
+        logits_processor = [
+            AudioTokenLogitsProcessor(
+                tokenizer=tokenizer,
+                prompt_length=input_ids.shape[1],
+                min_audio_tokens=args.min_audio_tokens,
+            )
+        ]
 
     with torch.inference_mode():
         generated = model.generate(
@@ -74,6 +136,7 @@ def main() -> None:
             max_new_tokens=args.max_new_tokens,
             do_sample=args.temperature > 0,
             temperature=args.temperature,
+            logits_processor=logits_processor,
             pad_token_id=tokenizer.token_to_id("<pad>"),
             eos_token_id=tokenizer.token_to_id("</s>"),
         )
