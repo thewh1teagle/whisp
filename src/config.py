@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument("--num-speakers", type=int, required=True)
     parser.add_argument("--train-batch-size", type=int, default=2)
     parser.add_argument("--eval-batch-size", type=int, default=2)
-    parser.add_argument("--epochs", type=float, default=1.0)
+    parser.add_argument("--epochs", type=float, default=100.0)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--warmup-steps", type=int, default=100)

@@ -40,3 +40,5 @@ Checkpoints are written to:
 ```text
 outputs/whisp
 ```
+
+Default training runs for `100` epochs. Stop/resume from checkpoints as needed.
