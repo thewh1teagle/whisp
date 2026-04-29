@@ -9,11 +9,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from accelerate import Accelerator
-from safetensors.torch import load_file
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from src.checkpoint import resume_step, save_checkpoint
+from src.checkpoint import load_checkpoint, resume_step, save_checkpoint
 from src.config import parse_args
 from src.data import make_dataloaders
 from src.model import build_model
@@ -34,13 +33,13 @@ def main() -> None:
         save_tokenizer(output_dir / "tokenizer.json", num_speakers=args.num_speakers)
 
     train_loader, eval_loader = make_dataloaders(args, tokenizer)
-    model = build_model(num_speakers=args.num_speakers)
 
     if args.resume:
-        state = load_file(str(Path(args.resume) / "model.safetensors"), device="cpu")
-        model.load_state_dict(state)
+        model = load_checkpoint(args.resume, num_speakers=args.num_speakers)
         if accelerator.is_main_process:
             print(f"Loaded weights from {args.resume}")
+    else:
+        model = build_model(num_speakers=args.num_speakers)
 
     total_steps = math.ceil(len(train_loader) * args.epochs / args.gradient_accumulation_steps)
     optimizer = build_optimizer(model, args.lr, args.weight_decay)
