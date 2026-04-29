@@ -2,6 +2,12 @@
 
 ## Prepare LibriTTS-R 360
 
+Prepared LibriTTS-R SNAC data is available at:
+
+```text
+https://huggingface.co/datasets/thewh1teagle/whisp-libritts-r-snac
+```
+
 ```bash
 scripts/prepare_libritts_r_360.sh
 ```
@@ -39,6 +45,12 @@ Checkpoints are written to:
 
 ```text
 outputs/whisp
+```
+
+Published checkpoints are available at:
+
+```text
+https://huggingface.co/thewh1teagle/whisper-snac-tts
 ```
 
 Default training runs for `100` epochs. Stop/resume from checkpoints as needed.
