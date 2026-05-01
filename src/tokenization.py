@@ -23,9 +23,6 @@ BASE_SPECIAL_TOKENS = [
     # Whole training/generation sequence boundaries.
     "<s>",
     "</s>",
-    # Speaker-ID conditioning block.
-    "<speaker>",
-    "</speaker>",
     # Phoneme text conditioning block.
     "<text>",
     "</text>",
@@ -44,7 +41,6 @@ def build_vocab(
 ) -> dict[str, int]:
     tokens = []
     tokens.extend(BASE_SPECIAL_TOKENS)
-    tokens.extend(f"<spk_{idx}>" for idx in range(num_speakers))
     tokens.extend(PHONEMES)
     tokens.extend(f"<audio_{idx}>" for idx in range(audio_vocab_size))
     return {token: idx for idx, token in enumerate(tokens)}
@@ -68,12 +64,6 @@ def build_tokenizer(
     )
     tokenizer.add_special_tokens(
         [
-            AddedToken(f"<spk_{idx}>", single_word=False, normalized=False)
-            for idx in range(num_speakers)
-        ]
-    )
-    tokenizer.add_special_tokens(
-        [
             AddedToken(f"<audio_{idx}>", single_word=False, normalized=False)
             for idx in range(audio_vocab_size)
         ]
@@ -81,8 +71,8 @@ def build_tokenizer(
     return tokenizer
 
 
-def format_prompt(speaker_id: int, phonemes: str) -> str:
-    return f"<s><speaker><spk_{speaker_id}></speaker><text>{phonemes}</text><audio>"
+def format_prompt(phonemes: str) -> str:
+    return f"<s><text>{phonemes}</text><audio>"
 
 
 def format_target(audio_tokens: list[int] | tuple[int, ...]) -> str:

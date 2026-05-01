@@ -4,8 +4,7 @@ import json
 import shutil
 from pathlib import Path
 
-from transformers import Qwen3MoeForCausalLM
-
+from src.model import WhispForConditionalGeneration
 from src.tokenization import save_tokenizer
 
 
@@ -30,7 +29,7 @@ def save_checkpoint(
 
 
 def load_checkpoint(checkpoint_dir: str | Path, *, num_speakers: int):
-    return Qwen3MoeForCausalLM.from_pretrained(str(checkpoint_dir))
+    return WhispForConditionalGeneration.from_pretrained(str(checkpoint_dir))
 
 
 def resume_step(checkpoint: str | Path, scheduler) -> int:

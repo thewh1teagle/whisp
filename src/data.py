@@ -16,6 +16,7 @@ IGNORE_INDEX = -100
 class WhispDataset(Dataset):
     def __init__(self, path: str | Path, tokenizer: Tokenizer):
         self.path = Path(path)
+        self.root = self.path.parent
         self.tokenizer = tokenizer
         with self.path.open() as f:
             self.rows = [json.loads(line) for line in f if line.strip()]
@@ -25,23 +26,27 @@ class WhispDataset(Dataset):
 
     def __getitem__(self, index: int) -> dict:
         row = self.rows[index]
-        if "input_ids" in row and "labels" in row:
-            input_ids = [int(token) for token in row["input_ids"]]
-            labels = [int(token) for token in row["labels"]]
-        else:
-            prompt = format_prompt(int(row["speaker_id"]), row["phonemes"])
-            target = format_target([int(token) for token in row["audio_tokens"]])
-            prompt_ids = self.tokenizer.encode(prompt).ids
-            target_ids = self.tokenizer.encode(target).ids
-            input_ids = prompt_ids + target_ids
-            labels = [IGNORE_INDEX] * len(prompt_ids) + target_ids
+        ref_speaker_embedding = row.get("ref_speaker_embedding")
+        if not ref_speaker_embedding:
+            raise ValueError(f"Missing ref_speaker_embedding in {self.path} row {index}")
+
+        ref_speaker_embedding_path = Path(ref_speaker_embedding)
+        if not ref_speaker_embedding_path.is_absolute():
+            ref_speaker_embedding_path = self.root / ref_speaker_embedding_path
+
+        prompt = format_prompt(row["phonemes"])
+        target = format_target([int(token) for token in row["audio_tokens"]])
+        prompt_ids = self.tokenizer.encode(prompt).ids
+        target_ids = self.tokenizer.encode(target).ids
+        input_ids = prompt_ids + target_ids
+        labels = [IGNORE_INDEX] * len(prompt_ids) + target_ids
 
         return {
             "input_ids": input_ids,
             "labels": labels,
-            "speaker_id": int(row["speaker_id"]),
             "text": row.get("text", ""),
             "phonemes": row.get("phonemes", ""),
+            "ref_speaker_embedding": str(ref_speaker_embedding_path),
         }
 
 
@@ -53,6 +58,7 @@ class WhispDataCollator:
     def __call__(self, features: list[dict]) -> dict:
         max_len = max(len(feature["input_ids"]) for feature in features)
         input_ids, labels, attention_mask = [], [], []
+        ref_speaker_embeddings = []
 
         for feature in features:
             pad = max_len - len(feature["input_ids"])
@@ -60,11 +66,17 @@ class WhispDataCollator:
             labels.append(feature["labels"] + [self.ignore_index] * pad)
             attention_mask.append([1] * len(feature["input_ids"]) + [0] * pad)
 
-        return {
+            item = torch.load(feature["ref_speaker_embedding"], map_location="cpu", weights_only=False)
+            embedding = item["embedding"] if isinstance(item, dict) else item
+            ref_speaker_embeddings.append(embedding.float().view(-1))
+
+        batch = {
             "input_ids": torch.tensor(input_ids, dtype=torch.long),
             "labels": torch.tensor(labels, dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
         }
+        batch["ref_speaker_embeddings"] = torch.stack(ref_speaker_embeddings)
+        return batch
 
 
 def make_dataloaders(args, tokenizer: Tokenizer) -> tuple[DataLoader, DataLoader]:
