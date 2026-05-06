@@ -101,7 +101,7 @@ class WhispDataset(Dataset):
         speaker_id = str(row["speaker_id"])
         refs = self.speaker_refs.get(speaker_id)
         if not refs:
-            raise ValueError(f"Missing speaker refs for speaker_id={speaker_id!r}")
+            return self[random.randrange(len(self.dataset))]
 
         target_audio_tokens = codes_to_depth_first(
             [
