@@ -57,7 +57,6 @@ class WhispDataset(Dataset):
             columns=PARQUET_COLUMNS,
         )
         self.speaker_refs = self._load_speaker_refs()
-        self.dataset = self._filter_dataset()
 
     def _load_speaker_refs(self) -> dict[str, list[Path | dict]]:
         parquet_path = self.speaker_refs_root / "speaker_refs.parquet"
@@ -93,12 +92,6 @@ class WhispDataset(Dataset):
         if not refs:
             raise FileNotFoundError(f"No speaker ref .pt files found under {self.speaker_refs_root}")
         return refs
-
-    def _filter_dataset(self):
-        return self.dataset.filter(
-            lambda row: str(row["speaker_id"]) in self.speaker_refs,
-            desc=f"Filtering {self.path.name} speakers",
-        )
 
     def __len__(self) -> int:
         return len(self.dataset)
