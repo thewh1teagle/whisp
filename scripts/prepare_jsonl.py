@@ -19,8 +19,8 @@ from src.codec import encode
 from src.phonemize import phonemize_text
 
 
-def prepare_one(task: tuple[str, str, str, int, bool, str]) -> tuple[int, dict | None, bool]:
-    utt_id, value, audio_path, speaker_id, should_phonemize, language = task
+def prepare_one(task: tuple[str, str, str, bool, str]) -> tuple[int, dict | None, bool]:
+    utt_id, value, audio_path, should_phonemize, language = task
     path = Path(audio_path)
     if not path.exists():
         return int(utt_id) if utt_id.isdigit() else 0, None, True
@@ -32,7 +32,6 @@ def prepare_one(task: tuple[str, str, str, int, bool, str]) -> tuple[int, dict |
         "audio": str(path),
         "text": text,
         "phonemes": phonemes,
-        "speaker_id": speaker_id,
         "audio_tokens": list(encoded.tokens),
     }
     return int(utt_id) if utt_id.isdigit() else 0, row, False
@@ -42,7 +41,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Prepare Whisp semantic JSONL from metadata.csv + wav/")
     parser.add_argument("dataset_dir", type=Path, help="Folder containing metadata.csv and wav/")
     parser.add_argument("--output", type=Path, default=None, help="Output JSONL path")
-    parser.add_argument("--speaker-id", type=int, default=0)
     parser.add_argument("--language", type=str, default="en-us")
     parser.add_argument("--phonemize", action="store_true", help="Treat metadata text as raw text and phonemize it")
     parser.add_argument("--delimiter", type=str, default="|")
@@ -82,7 +80,6 @@ def main() -> None:
             utt_id,
             value,
             str(wav_dir / f"{utt_id}{args.audio_ext}"),
-            args.speaker_id,
             args.phonemize,
             args.language,
         )

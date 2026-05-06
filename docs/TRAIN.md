@@ -29,16 +29,8 @@ cat dataset/.cache/speaker_map.json | head
 
 ## Train
 
-With `jq`:
-
 ```bash
-scripts/train_scratch.sh --num-speakers "$(jq -r .num_speakers dataset/.cache/speaker_map.json)"
-```
-
-Without `jq`:
-
-```bash
-scripts/train_scratch.sh --num-speakers "$(uv run python -c "import json; print(json.load(open('dataset/.cache/speaker_map.json'))['num_speakers'])")"
+scripts/train_scratch.sh
 ```
 
 Checkpoints are written to:

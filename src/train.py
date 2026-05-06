@@ -15,6 +15,7 @@ from tqdm import tqdm
 from src.checkpoint import load_checkpoint, resume_step, save_checkpoint
 from src.config import parse_args
 from src.data import make_dataloaders
+from src.evaluate import evaluate
 from src.model import build_model
 from src.optimizer import build_optimizer, build_scheduler
 from src.tokenization import build_tokenizer, save_tokenizer
@@ -28,18 +29,20 @@ def main() -> None:
     accelerator = Accelerator(mixed_precision="fp16" if args.fp16 else "no")
     writer = SummaryWriter(log_dir=str(output_dir / "tensorboard")) if accelerator.is_main_process else None
 
-    tokenizer = build_tokenizer(num_speakers=args.num_speakers)
+    tokenizer = build_tokenizer()
     if accelerator.is_main_process:
-        save_tokenizer(output_dir / "tokenizer.json", num_speakers=args.num_speakers)
+        save_tokenizer(output_dir / "tokenizer.json")
 
     train_loader, eval_loader = make_dataloaders(args, tokenizer)
 
     if args.resume:
-        model = load_checkpoint(args.resume, num_speakers=args.num_speakers)
+        model = load_checkpoint(args.resume)
         if accelerator.is_main_process:
             print(f"Loaded weights from {args.resume}")
     else:
-        model = build_model(num_speakers=args.num_speakers)
+        model = build_model(
+            max_position_embeddings=args.max_position_embeddings,
+        )
 
     total_steps = math.ceil(len(train_loader) * args.epochs / args.gradient_accumulation_steps)
     optimizer = build_optimizer(model, args.lr, args.weight_decay)
@@ -88,13 +91,30 @@ def main() -> None:
                     writer.add_scalar("train/loss", train_loss, opt_step)
                     writer.add_scalar("train/lr", scheduler.get_last_lr()[0], opt_step)
 
+                if opt_step % args.eval_steps == 0:
+                    metrics = evaluate(
+                        model,
+                        eval_loader,
+                        accelerator,
+                        max_batches=args.eval_max_batches,
+                    )
+                    if accelerator.is_main_process and writer:
+                        for name, value in metrics.items():
+                            writer.add_scalar(name, value, opt_step)
+                    if accelerator.is_main_process:
+                        pbar.write(
+                            " ".join(
+                                [f"step={opt_step}"]
+                                + [f"{name}={value:.4f}" for name, value in metrics.items()]
+                            )
+                        )
+
                 if accelerator.is_main_process and opt_step % args.save_steps == 0:
                     save_checkpoint(
                         accelerator.unwrap_model(model),
                         output_dir,
                         step=opt_step,
                         loss=train_loss,
-                        num_speakers=args.num_speakers,
                         save_total_limit=args.save_total_limit,
                     )
 
@@ -105,7 +125,6 @@ def main() -> None:
             output_dir,
             step=opt_step,
             loss=final_loss,
-            num_speakers=args.num_speakers,
             save_total_limit=args.save_total_limit,
         )
         if writer:

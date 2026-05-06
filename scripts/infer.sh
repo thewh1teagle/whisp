@@ -2,17 +2,15 @@
 set -euo pipefail
 
 # Usage:
-#   scripts/infer.sh <checkpoint> <num-speakers> <speaker-id> <text> [output.wav]
+#   scripts/infer.sh <checkpoint> <ref-speaker-embedding.pt> <text> [output.wav]
 
-CHECKPOINT=${1:?"Usage: $0 <checkpoint> <num-speakers> <speaker-id> <text> [output.wav]"}
-NUM_SPEAKERS=${2:?"Usage: $0 <checkpoint> <num-speakers> <speaker-id> <text> [output.wav]"}
-SPEAKER_ID=${3:?"Usage: $0 <checkpoint> <num-speakers> <speaker-id> <text> [output.wav]"}
-TEXT=${4:?"Usage: $0 <checkpoint> <num-speakers> <speaker-id> <text> [output.wav]"}
-OUTPUT=${5:-output.wav}
+CHECKPOINT=${1:?"Usage: $0 <checkpoint> <ref-speaker-embedding.pt> <text> [output.wav]"}
+REF_SPEAKER_EMBEDDING=${2:?"Usage: $0 <checkpoint> <ref-speaker-embedding.pt> <text> [output.wav]"}
+TEXT=${3:?"Usage: $0 <checkpoint> <ref-speaker-embedding.pt> <text> [output.wav]"}
+OUTPUT=${4:-output.wav}
 
 uv run src/infer.py \
   --checkpoint "${CHECKPOINT}" \
-  --num-speakers "${NUM_SPEAKERS}" \
-  --speaker-id "${SPEAKER_ID}" \
+  --ref-speaker-embedding "${REF_SPEAKER_EMBEDDING}" \
   --text "${TEXT}" \
   --output "${OUTPUT}"

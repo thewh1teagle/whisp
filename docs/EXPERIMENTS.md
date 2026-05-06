@@ -85,8 +85,7 @@ Recommended long-sentence diagnostic settings were:
 ```bash
 uv run src/infer.py \
   --checkpoint outputs/whisp/step-28500 \
-  --num-speakers <N> \
-  --speaker-id 307 \
+  --ref-speaker-embedding data/whisp-libriheavy-15k/speaker_refs/307/ref_000.pt \
   --text "<text>" \
   --output out.wav \
   --temperature 0.55 \

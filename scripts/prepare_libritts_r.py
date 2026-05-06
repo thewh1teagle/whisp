@@ -102,7 +102,6 @@ def main() -> None:
         json.dumps(
             {
                 "speaker_to_id": speaker_to_id,
-                "num_speakers": len(speaker_to_id),
             },
             ensure_ascii=False,
             indent=2,
@@ -114,13 +113,12 @@ def main() -> None:
     print(f"train: {args.train_output}")
     print(f"val: {args.val_output}")
     print(f"speaker_map: {args.speaker_map}")
-    print(f"num_speakers: {len(speaker_to_id)}")
     print(f"train_rows: {written_train}")
     print(f"val_rows: {written_val}")
     print(f"skipped_missing_text: {skipped_missing_text}")
     print()
     print("train command:")
-    print(f"  scripts/train_scratch.sh --num-speakers {len(speaker_to_id)}")
+    print("  scripts/train_scratch.sh")
 
 
 if __name__ == "__main__":

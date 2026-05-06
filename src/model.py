@@ -14,12 +14,11 @@ REF_SPEAKER_EMBEDDING_SIZE = 1024
 
 def build_config(
     *,
-    num_speakers: int,
     vocab_size: int | None = None,
     max_position_embeddings: int = 4096,
 ) -> Qwen3MoeConfig:
     if vocab_size is None:
-        vocab_size = len(build_vocab(num_speakers=num_speakers))
+        vocab_size = len(build_vocab())
 
     return Qwen3MoeConfig(
         vocab_size=vocab_size,
@@ -54,22 +53,16 @@ class WhispForConditionalGeneration(nn.Module):
         )
         self.config = lm.config
 
-    def forward(
+    def condition_inputs(
         self,
         input_ids: torch.Tensor,
-        attention_mask: torch.Tensor | None = None,
-        labels: torch.Tensor | None = None,
-        ref_speaker_embeddings: torch.Tensor | None = None,
-        **kwargs,
-    ) -> CausalLMOutputWithPast:
-        if ref_speaker_embeddings is None:
-            raise ValueError("ref_speaker_embeddings is required")
-
+        attention_mask: torch.Tensor | None,
+        ref_speaker_embeddings: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         token_embeddings = self.lm.get_input_embeddings()(input_ids)
         speaker_embeddings = self.ref_speaker_adapter(
             ref_speaker_embeddings.to(device=token_embeddings.device, dtype=token_embeddings.dtype)
         ).unsqueeze(1)
-
         inputs_embeds = torch.cat(
             [token_embeddings[:, :1], speaker_embeddings, token_embeddings[:, 1:]],
             dim=1,
@@ -84,6 +77,25 @@ class WhispForConditionalGeneration(nn.Module):
             )
             attention_mask = torch.cat([attention_mask[:, :1], speaker_mask, attention_mask[:, 1:]], dim=1)
 
+        return inputs_embeds, attention_mask
+
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
+        ref_speaker_embeddings: torch.Tensor | None = None,
+        **kwargs,
+    ) -> CausalLMOutputWithPast:
+        if ref_speaker_embeddings is None:
+            raise ValueError("ref_speaker_embeddings is required")
+
+        inputs_embeds, attention_mask = self.condition_inputs(
+            input_ids,
+            attention_mask,
+            ref_speaker_embeddings,
+        )
+
         if labels is not None:
             speaker_labels = torch.full(
                 (labels.shape[0], 1),
@@ -97,6 +109,25 @@ class WhispForConditionalGeneration(nn.Module):
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             labels=labels,
+            **kwargs,
+        )
+
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        *,
+        ref_speaker_embeddings: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        **kwargs,
+    ):
+        inputs_embeds, attention_mask = self.condition_inputs(
+            input_ids,
+            attention_mask,
+            ref_speaker_embeddings,
+        )
+        return self.lm.generate(
+            inputs_embeds=inputs_embeds,
+            attention_mask=attention_mask,
             **kwargs,
         )
 
@@ -122,11 +153,14 @@ class WhispForConditionalGeneration(nn.Module):
 
 def build_model(
     *,
-    num_speakers: int,
     vocab_size: int | None = None,
+    max_position_embeddings: int = 4096,
     dtype: torch.dtype | None = None,
 ) -> WhispForConditionalGeneration:
-    config = build_config(num_speakers=num_speakers, vocab_size=vocab_size)
+    config = build_config(
+        vocab_size=vocab_size,
+        max_position_embeddings=max_position_embeddings,
+    )
     model = WhispForConditionalGeneration(Qwen3MoeForCausalLM(config))
     if dtype is not None:
         model = model.to(dtype=dtype)

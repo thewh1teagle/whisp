@@ -41,7 +41,7 @@ def main() -> None:
     rows = [json.loads(line) for line in args.jsonl.read_text().splitlines() if line.strip()]
     row = rows[args.row]
 
-    prompt = format_prompt(int(row["speaker_id"]), row["phonemes"])
+    prompt = format_prompt(row["phonemes"])
     prompt_ids = tokenizer.encode(prompt).ids
     prompt_arg = ",".join(str(token_id) for token_id in prompt_ids)
 

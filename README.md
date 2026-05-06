@@ -10,7 +10,7 @@ Current focus:
 
 - SNAC 24 kHz codec encode/decode
 - character phoneme tokenizer
-- speaker-id conditioning
+- reference speaker embedding conditioning
 - Qwen3-MoE causal LM training
 - PyTorch inference, with experimental ONNX/GGUF notes
 

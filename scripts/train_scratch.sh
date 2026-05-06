@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Usage:
-#   scripts/train_scratch.sh --num-speakers 123
-#   scripts/train_scratch.sh --num-speakers 123 --resume outputs/whisp/step-500
+#   scripts/train_scratch.sh
+#   scripts/train_scratch.sh --resume outputs/whisp/step-500
 
 RESUME=""
 RESET_STEPS=""
@@ -18,8 +18,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 uv run accelerate launch src/train.py \
-  --train-dataset dataset/.cache/train.jsonl \
-  --eval-dataset dataset/.cache/val.jsonl \
+  --train-dataset data/whisp-libriheavy-15k/data/train \
+  --eval-dataset data/whisp-libriheavy-15k/data/validation \
+  --speaker-refs-root data/whisp-libriheavy-15k/speaker_refs \
   --output-dir outputs/whisp \
   --train-batch-size 2 \
   --eval-batch-size 2 \
@@ -27,7 +28,9 @@ uv run accelerate launch src/train.py \
   --lr 3e-4 \
   --warmup-steps 100 \
   --logging-steps 10 \
+  --eval-steps 500 \
   --save-steps 500 \
+  --max-position-embeddings 4096 \
   ${RESUME} \
   ${RESET_STEPS} \
   "${EXTRA[@]+"${EXTRA[@]}"}"

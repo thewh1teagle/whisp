@@ -67,8 +67,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Generate speech with a Whisp checkpoint")
     parser.add_argument("--checkpoint", type=str, required=True)
     parser.add_argument("--text", type=str, required=True)
-    parser.add_argument("--speaker-id", type=int, required=True)
-    parser.add_argument("--num-speakers", type=int, required=True)
+    parser.add_argument("--ref-speaker-embedding", type=str, required=True)
     parser.add_argument("--output", type=str, default="output.wav")
     parser.add_argument("--max-new-tokens", type=int, default=1024)
     parser.add_argument(
@@ -128,11 +127,14 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     checkpoint_dir = Path(args.checkpoint)
     tokenizer = Tokenizer.from_file(str(checkpoint_dir / "tokenizer.json"))
-    model = load_checkpoint(checkpoint_dir, num_speakers=args.num_speakers).to(device).eval()
+    model = load_checkpoint(checkpoint_dir).to(device).eval()
 
     phonemes = args.text if args.phonemes else phonemize_text(args.text, language=args.language)
-    prompt = format_prompt(args.speaker_id, phonemes)
+    prompt = format_prompt(phonemes)
     input_ids = torch.tensor([tokenizer.encode(prompt).ids], dtype=torch.long, device=device)
+    item = torch.load(args.ref_speaker_embedding, map_location="cpu", weights_only=False)
+    embedding = item["embedding"] if isinstance(item, dict) else item
+    ref_speaker_embeddings = embedding.float().view(1, -1).to(device)
     max_new_tokens = args.max_new_tokens
     if args.max_seconds is not None:
         max_new_tokens = max(7, int(args.max_seconds * SNAC_TOKENS_PER_SECOND))
@@ -150,6 +152,7 @@ def main() -> None:
     with torch.inference_mode():
         generated = model.generate(
             input_ids=input_ids,
+            ref_speaker_embeddings=ref_speaker_embeddings,
             max_new_tokens=max_new_tokens,
             do_sample=args.temperature > 0,
             temperature=args.temperature,

@@ -41,7 +41,7 @@ def main() -> None:
     rows = [json.loads(line) for line in args.jsonl.read_text().splitlines() if line.strip()]
     row = rows[args.row]
 
-    prompt = format_prompt(int(row["speaker_id"]), row["phonemes"])
+    prompt = format_prompt(row["phonemes"])
     session = ort.InferenceSession(str(args.model), providers=["CPUExecutionProvider"])
     graph_inputs = {item.name: item for item in session.get_inputs()}
     context_length = int(graph_inputs["input_ids"].shape[1])

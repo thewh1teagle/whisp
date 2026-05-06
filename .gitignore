@@ -15,3 +15,5 @@ data/
 outputs/
 dataset/.cache/
 libriheavy*/
+libriheavy-snac-codes/
+whisp-libriheavy*/

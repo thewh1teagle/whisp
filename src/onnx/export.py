@@ -127,7 +127,7 @@ def export_onnx(
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
         rows = [json.loads(line) for line in jsonl_path.read_text().splitlines() if line.strip()]
         row = rows[row_index]
-        prompt = format_prompt(int(row["speaker_id"]), row["phonemes"])
+        prompt = format_prompt(row["phonemes"])
         ids = tokenizer.encode(prompt).ids
         if sequence_length < len(ids):
             sequence_length = len(ids)

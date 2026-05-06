@@ -14,13 +14,12 @@ def save_checkpoint(
     *,
     step: int,
     loss: float,
-    num_speakers: int,
     save_total_limit: int,
 ) -> None:
     ckpt_dir = output_dir / f"step-{step}"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(str(ckpt_dir), safe_serialization=True)
-    save_tokenizer(ckpt_dir / "tokenizer.json", num_speakers=num_speakers)
+    save_tokenizer(ckpt_dir / "tokenizer.json")
     (ckpt_dir / "train_state.json").write_text(json.dumps({"step": step, "loss": loss}, indent=2))
 
     checkpoints = sorted(output_dir.glob("step-*"), key=lambda path: int(path.name.split("-")[1]))
@@ -28,7 +27,7 @@ def save_checkpoint(
         shutil.rmtree(checkpoints.pop(0))
 
 
-def load_checkpoint(checkpoint_dir: str | Path, *, num_speakers: int):
+def load_checkpoint(checkpoint_dir: str | Path):
     return WhispForConditionalGeneration.from_pretrained(str(checkpoint_dir))
 
 
