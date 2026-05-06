@@ -35,7 +35,7 @@ def build_config(
         decoder_sparse_step=1,
         rms_norm_eps=1e-6,
         rope_theta=500_000.0,
-        router_aux_loss_coef=0.001,
+        router_aux_loss_coef=0.0,
         tie_word_embeddings=True,
         pad_token_id=0,
         bos_token_id=2,
