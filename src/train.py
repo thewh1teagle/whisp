@@ -9,6 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from accelerate import Accelerator
+import torch
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
@@ -26,7 +27,7 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    accelerator = Accelerator(mixed_precision="fp16" if args.fp16 else "no")
+    accelerator = Accelerator(mixed_precision=args.mixed_precision)
     writer = SummaryWriter(log_dir=str(output_dir / "tensorboard")) if accelerator.is_main_process else None
 
     tokenizer = build_tokenizer()
@@ -71,6 +72,13 @@ def main() -> None:
             with accelerator.autocast():
                 out = model(**batch)
                 loss = out.loss
+
+            if not torch.isfinite(loss):
+                lengths = batch["attention_mask"].sum(dim=1).detach().cpu().tolist()
+                raise RuntimeError(
+                    f"Non-finite loss at opt_step={opt_step} global_step={global_step} "
+                    f"lengths={lengths} mixed_precision={args.mixed_precision}"
+                )
 
             accelerator.backward(loss / args.gradient_accumulation_steps)
             loss_sum += loss.item()
