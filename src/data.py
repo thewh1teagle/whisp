@@ -46,10 +46,12 @@ class WhispDataset(Dataset):
         path: str | Path,
         tokenizer: Tokenizer,
         speaker_refs_root: str | Path,
+        max_sequence_length: int | None = None,
     ):
         self.path = Path(path)
         self.tokenizer = tokenizer
         self.speaker_refs_root = Path(speaker_refs_root)
+        self.max_sequence_length = max_sequence_length
         self.dataset = load_dataset(
             "parquet",
             data_files=parquet_files(self.path),
@@ -96,10 +98,26 @@ class WhispDataset(Dataset):
 
     def _build_indices(self) -> list[int] | None:
         speaker_ids = self.dataset["speaker_id"]
-        indices = [idx for idx, speaker_id in enumerate(speaker_ids) if str(speaker_id) in self.speaker_refs]
+        indices = []
+        skipped_missing_refs = 0
+        skipped_too_long = 0
+        for idx, speaker_id in enumerate(speaker_ids):
+            refs = self.speaker_refs.get(str(speaker_id))
+            if not refs:
+                skipped_missing_refs += 1
+                continue
+            if self.max_sequence_length is not None:
+                row = self.dataset[idx]
+                if sequence_length(row, refs[0]) > self.max_sequence_length:
+                    skipped_too_long += 1
+                    continue
+            indices.append(idx)
         skipped = len(speaker_ids) - len(indices)
         if skipped:
-            print(f"Skipping {skipped} rows without speaker refs in {self.path}")
+            print(
+                f"Skipping {skipped} rows in {self.path} "
+                f"(missing_refs={skipped_missing_refs}, too_long={skipped_too_long})"
+            )
         return indices if skipped else None
 
     def __len__(self) -> int:
@@ -189,6 +207,7 @@ def make_dataloaders(args, tokenizer: Tokenizer) -> tuple[DataLoader, DataLoader
             args.train_dataset,
             tokenizer,
             args.speaker_refs_root,
+            max_sequence_length=args.max_sequence_length,
         ),
         batch_size=args.train_batch_size,
         shuffle=True,
@@ -200,6 +219,7 @@ def make_dataloaders(args, tokenizer: Tokenizer) -> tuple[DataLoader, DataLoader
             args.eval_dataset,
             tokenizer,
             args.speaker_refs_root,
+            max_sequence_length=args.max_sequence_length,
         ),
         batch_size=args.eval_batch_size,
         shuffle=False,

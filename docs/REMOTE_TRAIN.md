@@ -30,7 +30,9 @@ uv run accelerate launch src/train.py \
   --eval-steps 500 \
   --eval-max-batches 32 \
   --save-steps 500 \
-  --max-position-embeddings 4096
+  --max-position-embeddings 8192 \
+  --max-sequence-length 8192 \
+  --no-fp16
 ```
 
 TensorBoard:
