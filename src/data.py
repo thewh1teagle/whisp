@@ -100,37 +100,33 @@ class WhispDataset(Dataset):
         speaker_ids = self.dataset["speaker_id"]
         indices = []
         skipped_missing_refs = 0
-        skipped_too_long = 0
         for idx, speaker_id in enumerate(speaker_ids):
             refs = self.speaker_refs.get(str(speaker_id))
             if not refs:
                 skipped_missing_refs += 1
                 continue
-            if self.max_sequence_length is not None:
-                row = self.dataset[idx]
-                if sequence_length(row, refs[0]) > self.max_sequence_length:
-                    skipped_too_long += 1
-                    continue
             indices.append(idx)
         skipped = len(speaker_ids) - len(indices)
         if skipped:
-            print(
-                f"Skipping {skipped} rows in {self.path} "
-                f"(missing_refs={skipped_missing_refs}, too_long={skipped_too_long})"
-            )
+            print(f"Skipping {skipped} rows in {self.path} (missing_refs={skipped_missing_refs})")
         return indices if skipped else None
 
     def __len__(self) -> int:
         return len(self.indices) if self.indices is not None else len(self.dataset)
 
     def __getitem__(self, index: int) -> dict:
-        if self.indices is not None:
-            index = self.indices[index]
-        row = self.dataset[index]
-        speaker_id = str(row["speaker_id"])
-        refs = self.speaker_refs.get(speaker_id)
-        if not refs:
-            raise ValueError(f"Missing speaker refs for speaker_id={speaker_id!r}")
+        for attempt in range(16):
+            dataset_index = self.indices[index] if self.indices is not None else index
+            row = self.dataset[dataset_index]
+            speaker_id = str(row["speaker_id"])
+            refs = self.speaker_refs.get(speaker_id)
+            if refs:
+                ref = random.choice(refs)
+                if self.max_sequence_length is None or sequence_length(row, ref) <= self.max_sequence_length:
+                    break
+            index = random.randrange(len(self))
+        else:
+            raise ValueError(f"Could not sample a valid row after 16 attempts from {self.path}")
 
         target_audio_tokens = codes_to_depth_first(
             [
@@ -139,7 +135,6 @@ class WhispDataset(Dataset):
                 torch.tensor(row["snac_2"], dtype=torch.long),
             ]
         )
-        ref = random.choice(refs)
         ref_audio_tokens = None
         if isinstance(ref, dict) and "ref_snac_0" in ref:
             ref_audio_tokens = codes_to_depth_first(
