@@ -57,6 +57,7 @@ class WhispDataset(Dataset):
             columns=PARQUET_COLUMNS,
         )
         self.speaker_refs = self._load_speaker_refs()
+        self.indices = self._build_indices()
 
     def _load_speaker_refs(self) -> dict[str, list[Path | dict]]:
         parquet_path = self.speaker_refs_root / "speaker_refs.parquet"
@@ -93,15 +94,25 @@ class WhispDataset(Dataset):
             raise FileNotFoundError(f"No speaker ref .pt files found under {self.speaker_refs_root}")
         return refs
 
+    def _build_indices(self) -> list[int] | None:
+        speaker_ids = self.dataset["speaker_id"]
+        indices = [idx for idx, speaker_id in enumerate(speaker_ids) if str(speaker_id) in self.speaker_refs]
+        skipped = len(speaker_ids) - len(indices)
+        if skipped:
+            print(f"Skipping {skipped} rows without speaker refs in {self.path}")
+        return indices if skipped else None
+
     def __len__(self) -> int:
-        return len(self.dataset)
+        return len(self.indices) if self.indices is not None else len(self.dataset)
 
     def __getitem__(self, index: int) -> dict:
+        if self.indices is not None:
+            index = self.indices[index]
         row = self.dataset[index]
         speaker_id = str(row["speaker_id"])
         refs = self.speaker_refs.get(speaker_id)
         if not refs:
-            return self[random.randrange(len(self.dataset))]
+            raise ValueError(f"Missing speaker refs for speaker_id={speaker_id!r}")
 
         target_audio_tokens = codes_to_depth_first(
             [
