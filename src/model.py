@@ -3,13 +3,12 @@ from __future__ import annotations
 import torch
 from torch import nn
 from transformers.modeling_outputs import CausalLMOutputWithPast
-from transformers import Qwen3MoeConfig, Qwen3MoeForCausalLM
+from transformers import Qwen3Config, Qwen3ForCausalLM
 
 from src.tokenization import build_vocab
 
 
 REF_SPEAKER_EMBEDDING_SIZE = 1024
-MLP_ONLY_LAYERS = [0, 1, 2, 3, 4, 5]
 
 
 def build_config(
@@ -17,26 +16,20 @@ def build_config(
     vocab_size: int | None = None,
     max_position_embeddings: int = 4096,
     attn_implementation: str | None = None,
-) -> Qwen3MoeConfig:
+) -> Qwen3Config:
     if vocab_size is None:
         vocab_size = len(build_vocab())
 
-    config = Qwen3MoeConfig(
+    config = Qwen3Config(
         vocab_size=vocab_size,
         hidden_size=640,
-        intermediate_size=1280,
-        num_hidden_layers=10,
+        intermediate_size=1920,
+        num_hidden_layers=16,
         num_attention_heads=5,
         num_key_value_heads=5,
         max_position_embeddings=max_position_embeddings,
-        mlp_only_layers=MLP_ONLY_LAYERS,
-        moe_intermediate_size=1280,
-        num_experts=20,
-        num_experts_per_tok=2,
-        decoder_sparse_step=1,
         rms_norm_eps=1e-6,
         rope_theta=500_000.0,
-        router_aux_loss_coef=0.001,
         tie_word_embeddings=True,
         pad_token_id=0,
         bos_token_id=2,
@@ -48,7 +41,7 @@ def build_config(
 
 
 class WhispForConditionalGeneration(nn.Module):
-    def __init__(self, lm: Qwen3MoeForCausalLM, ref_speaker_embedding_size: int = REF_SPEAKER_EMBEDDING_SIZE):
+    def __init__(self, lm: Qwen3ForCausalLM, ref_speaker_embedding_size: int = REF_SPEAKER_EMBEDDING_SIZE):
         super().__init__()
         self.lm = lm
         self.ref_speaker_adapter = nn.Sequential(
@@ -147,7 +140,7 @@ class WhispForConditionalGeneration(nn.Module):
 
     @classmethod
     def from_pretrained(cls, checkpoint_dir: str, ref_speaker_embedding_size: int = REF_SPEAKER_EMBEDDING_SIZE):
-        lm = Qwen3MoeForCausalLM.from_pretrained(checkpoint_dir)
+        lm = Qwen3ForCausalLM.from_pretrained(checkpoint_dir)
         model = cls(lm, ref_speaker_embedding_size=ref_speaker_embedding_size)
         adapter_path = f"{checkpoint_dir}/ref_speaker_adapter.pt"
         adapter_state = torch.load(adapter_path, map_location="cpu", weights_only=False)
@@ -167,7 +160,7 @@ def build_model(
         max_position_embeddings=max_position_embeddings,
         attn_implementation=attn_implementation,
     )
-    model = WhispForConditionalGeneration(Qwen3MoeForCausalLM(config))
+    model = WhispForConditionalGeneration(Qwen3ForCausalLM(config))
     if dtype is not None:
         model = model.to(dtype=dtype)
     return model
