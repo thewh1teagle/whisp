@@ -86,7 +86,16 @@ def main() -> None:
             global_step += 1
 
             if global_step % args.gradient_accumulation_steps == 0:
-                accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                grad_norm = accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                if not torch.isfinite(grad_norm):
+                    if accelerator.is_main_process:
+                        pbar.write(
+                            f"Skipping optimizer step {opt_step + 1}: non-finite grad_norm={grad_norm.item()}"
+                        )
+                    optimizer.zero_grad()
+                    loss_sum = 0.0
+                    loss_count = 0
+                    continue
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
