@@ -88,17 +88,19 @@ def main() -> None:
 
             if global_step % args.gradient_accumulation_steps == 0:
                 grad_norm = accelerator.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                if not torch.isfinite(grad_norm):
-                    if accelerator.is_main_process:
+                optimizer.step()
+                step_was_skipped = accelerator.optimizer_step_was_skipped
+                if step_was_skipped:
+                    if accelerator.is_main_process and not torch.isfinite(grad_norm):
                         pbar.write(
-                            f"Skipping optimizer step {opt_step + 1}: non-finite grad_norm={grad_norm.item()}"
+                            f"Skipped optimizer step {opt_step + 1}: non-finite grad_norm={grad_norm.item()}"
                         )
                     optimizer.zero_grad()
                     loss_sum = 0.0
                     loss_count = 0
                     continue
-                optimizer.step()
-                scheduler.step()
+                else:
+                    scheduler.step()
                 optimizer.zero_grad()
                 opt_step += 1
 
