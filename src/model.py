@@ -16,11 +16,12 @@ def build_config(
     *,
     vocab_size: int | None = None,
     max_position_embeddings: int = 4096,
+    attn_implementation: str | None = None,
 ) -> Qwen3MoeConfig:
     if vocab_size is None:
         vocab_size = len(build_vocab())
 
-    return Qwen3MoeConfig(
+    config = Qwen3MoeConfig(
         vocab_size=vocab_size,
         hidden_size=640,
         intermediate_size=1280,
@@ -41,6 +42,9 @@ def build_config(
         bos_token_id=2,
         eos_token_id=3,
     )
+    if attn_implementation is not None:
+        config._attn_implementation = attn_implementation
+    return config
 
 
 class WhispForConditionalGeneration(nn.Module):
@@ -155,11 +159,13 @@ def build_model(
     *,
     vocab_size: int | None = None,
     max_position_embeddings: int = 4096,
+    attn_implementation: str | None = None,
     dtype: torch.dtype | None = None,
 ) -> WhispForConditionalGeneration:
     config = build_config(
         vocab_size=vocab_size,
         max_position_embeddings=max_position_embeddings,
+        attn_implementation=attn_implementation,
     )
     model = WhispForConditionalGeneration(Qwen3MoeForCausalLM(config))
     if dtype is not None:

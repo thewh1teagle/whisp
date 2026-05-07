@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument("--max-grad-norm", type=float, default=1.0)
     parser.add_argument("--max-position-embeddings", type=int, default=4096)
     parser.add_argument("--max-sequence-length", type=int, default=None)
+    parser.add_argument("--attn-implementation", type=str, default=None)
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--reset-steps", action="store_true", default=False)
     parser.add_argument("--dataloader-workers", type=int, default=0)

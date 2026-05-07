@@ -43,6 +43,7 @@ def main() -> None:
     else:
         model = build_model(
             max_position_embeddings=args.max_position_embeddings,
+            attn_implementation=args.attn_implementation,
         )
 
     total_steps = math.ceil(len(train_loader) * args.epochs / args.gradient_accumulation_steps)
