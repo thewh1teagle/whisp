@@ -65,12 +65,7 @@ disk.
 scripts/train_libriheavy_snac.sh --max-steps 100000
 ```
 
-The LibriHeavy script requests `flash_attention_3` by default. Override it with
-`ATTN_IMPLEMENTATION` if needed:
-
-```bash
-ATTN_IMPLEMENTATION=sdpa scripts/train_libriheavy_snac.sh --max-steps 100000
-```
+The LibriHeavy script requests `flash_attention_3`.
 
 By default, `torch` is resolved from the PyTorch CUDA 12.8 index configured in
 `pyproject.toml`:
