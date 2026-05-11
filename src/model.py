@@ -46,6 +46,7 @@ def build_model(
     num_speakers: int,
     vocab_size: int | None = None,
     max_position_embeddings: int = 4096,
+    attn_implementation: str | None = None,
     dtype: torch.dtype | None = None,
 ) -> Qwen3MoeForCausalLM:
     config = build_config(
@@ -53,7 +54,10 @@ def build_model(
         vocab_size=vocab_size,
         max_position_embeddings=max_position_embeddings,
     )
-    model = Qwen3MoeForCausalLM(config)
+    kwargs = {}
+    if attn_implementation is not None:
+        kwargs["attn_implementation"] = attn_implementation
+    model = Qwen3MoeForCausalLM(config, **kwargs)
     if dtype is not None:
         model = model.to(dtype=dtype)
     return model

@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument("--max-grad-norm", type=float, default=1.0)
     parser.add_argument("--max-position-embeddings", type=int, default=4096)
     parser.add_argument("--max-sequence-length", type=int, default=4096)
+    parser.add_argument("--flash-attention", action="store_true", help="Use Transformers flash_attention_2 attention implementation")
     parser.add_argument("--shuffle-buffer-size", type=int, default=20_000)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--resume", type=str, default=None)

@@ -29,8 +29,16 @@ def save_checkpoint(
         shutil.rmtree(checkpoints.pop(0))
 
 
-def load_checkpoint(checkpoint_dir: str | Path, *, num_speakers: int):
-    return Qwen3MoeForCausalLM.from_pretrained(str(checkpoint_dir))
+def load_checkpoint(
+    checkpoint_dir: str | Path,
+    *,
+    num_speakers: int,
+    attn_implementation: str | None = None,
+):
+    kwargs = {}
+    if attn_implementation is not None:
+        kwargs["attn_implementation"] = attn_implementation
+    return Qwen3MoeForCausalLM.from_pretrained(str(checkpoint_dir), **kwargs)
 
 
 def resume_step(checkpoint: str | Path, scheduler) -> int:

@@ -77,15 +77,21 @@ def main() -> None:
 
     train_loader, eval_loader = make_dataloaders(args, tokenizer)
     stats = dataset_stats(args)
+    attn_implementation = "flash_attention_2" if args.flash_attention else None
 
     if args.resume:
-        model = load_checkpoint(args.resume, num_speakers=args.num_speakers)
+        model = load_checkpoint(
+            args.resume,
+            num_speakers=args.num_speakers,
+            attn_implementation=attn_implementation,
+        )
         if accelerator.is_main_process:
             print(f"Loaded weights from {args.resume}")
     else:
         model = build_model(
             num_speakers=args.num_speakers,
             max_position_embeddings=args.max_position_embeddings,
+            attn_implementation=attn_implementation,
         )
 
     total_steps = total_training_steps(args, train_loader)
