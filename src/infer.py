@@ -16,7 +16,7 @@ from tokenizers import Tokenizer
 from src.checkpoint import load_checkpoint
 from src.codec import SAMPLE_RATE, decode
 from src.phonemize import phonemize_text
-from src.tokenization import audio_id_from_token, audio_stop_token_ids, audio_token_ids
+from src.tokenization import audio_id_from_token, audio_stop_token_ids, audio_token_ids, format_prompt
 
 
 def parse_args() -> argparse.Namespace:
@@ -110,7 +110,7 @@ def main() -> None:
     model = load_checkpoint(args.checkpoint, num_speakers=args.num_speakers).to(device).eval()
 
     phonemes = args.text if args.phonemes else phonemize_text(args.text, language=args.language)
-    prompt = f"<s><speaker><spk_{args.speaker_id}></speaker><text>{phonemes}</text><audio>"
+    prompt = format_prompt(args.speaker_id, phonemes)
     input_ids = torch.tensor([tokenizer.encode(prompt).ids], dtype=torch.long, device=device)
     max_new_tokens = args.max_new_tokens - (args.max_new_tokens % 7)
 
