@@ -65,12 +65,11 @@ disk.
 scripts/train_libriheavy_snac.sh --max-steps 100000
 ```
 
-By default, `torch` is resolved from the PyTorch CUDA 13.0 index through the
-default `cu130` dependency group. On CUDA 12.8 hosts with older drivers, run
-with the `cu128` group instead:
+By default, `torch` is resolved from the PyTorch CUDA 12.8 index configured in
+`pyproject.toml`:
 
 ```bash
-uv run --no-default-groups --group cu128 accelerate launch src/train.py ...
+uv sync
 ```
 
 `--num-speakers` is inferred from `libriheavy-snac/speakers/manifest.json`.
