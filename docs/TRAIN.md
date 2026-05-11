@@ -65,12 +65,12 @@ disk.
 scripts/train_libriheavy_snac.sh --max-steps 100000
 ```
 
-By default, `torch` is resolved from the PyTorch CUDA 13.0 index. On CUDA 12.8
-hosts with older drivers, use a local no-sync override:
+By default, `torch` is resolved from the PyTorch CUDA 13.0 index through the
+default `cu130` dependency group. On CUDA 12.8 hosts with older drivers, run
+with the `cu128` group instead:
 
 ```bash
-uv pip install --reinstall torch --index-url https://download.pytorch.org/whl/cu128
-uv run --no-sync accelerate launch src/train.py ...
+uv run --no-default-groups --group cu128 accelerate launch src/train.py ...
 ```
 
 `--num-speakers` is inferred from `libriheavy-snac/speakers/manifest.json`.
