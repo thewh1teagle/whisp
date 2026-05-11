@@ -22,8 +22,8 @@ uv run accelerate launch src/train.py \
   --train-dataset libriheavy-snac \
   --eval-dataset libriheavy-snac \
   --output-dir outputs/whisp-libriheavy \
-  --train-batch-size 2 \
-  --eval-batch-size 2 \
+  --train-batch-size 4 \
+  --eval-batch-size 4 \
   --gradient-accumulation-steps 8 \
   --lr 3e-4 \
   --warmup-steps 100 \
