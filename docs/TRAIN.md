@@ -65,6 +65,14 @@ disk.
 scripts/train_libriheavy_snac.sh --max-steps 100000
 ```
 
+By default, `torch` is resolved from the PyTorch CUDA 13.0 index. On CUDA 12.8
+hosts with older drivers, use a local no-sync override:
+
+```bash
+uv pip install --reinstall torch --index-url https://download.pytorch.org/whl/cu128
+uv run --no-sync accelerate launch src/train.py ...
+```
+
 `--num-speakers` is inferred from `libriheavy-snac/speakers/manifest.json`.
 Raw LibriHeavy speaker IDs are remapped to contiguous tokenizer IDs at startup
 from the small `speakers/` parquet set.

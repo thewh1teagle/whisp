@@ -17,7 +17,39 @@ dependencies = [
     "safetensors>=0.5.3",
     "snac>=1.2.1",
     "tensorboard>=2.20.0",
-    "torch>=2.11.0",
     "tqdm>=4.67.3",
     "transformers>=5.7.0",
 ]
+
+[dependency-groups]
+cu130 = [
+    "torch>=2.11.0",
+]
+cu128 = [
+    "torch>=2.11.0",
+]
+
+[tool.uv]
+default-groups = ["cu130"]
+conflicts = [
+    [
+        { group = "cu130" },
+        { group = "cu128" },
+    ],
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", group = "cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { index = "pytorch-cu128", group = "cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
