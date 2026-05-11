@@ -35,6 +35,7 @@ BASE_SPECIAL_TOKENS = [
 ]
 
 DEFAULT_AUDIO_VOCAB_SIZE = 4096
+AUDIO_STOP_TOKENS = ("</audio>", "</s>")
 
 
 def build_vocab(
@@ -88,6 +89,21 @@ def format_prompt(speaker_id: int, phonemes: str) -> str:
 def format_target(audio_tokens: list[int] | tuple[int, ...]) -> str:
     audio = "".join(f"<audio_{token}>" for token in audio_tokens)
     return f"{audio}</audio></s>"
+
+
+def audio_token_ids(
+    tokenizer: Tokenizer,
+    audio_vocab_size: int = DEFAULT_AUDIO_VOCAB_SIZE,
+) -> list[int]:
+    return [tokenizer.token_to_id(f"<audio_{audio_id}>") for audio_id in range(audio_vocab_size)]
+
+
+def audio_stop_token_ids(tokenizer: Tokenizer) -> list[int]:
+    return [tokenizer.token_to_id(token) for token in AUDIO_STOP_TOKENS]
+
+
+def audio_id_from_token(token: str) -> int:
+    return int(token.removeprefix("<audio_").removesuffix(">"))
 
 
 def save_tokenizer(
