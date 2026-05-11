@@ -54,10 +54,9 @@ def build_model(
         vocab_size=vocab_size,
         max_position_embeddings=max_position_embeddings,
     )
-    kwargs = {}
     if attn_implementation is not None:
-        kwargs["attn_implementation"] = attn_implementation
-    model = Qwen3MoeForCausalLM(config, **kwargs)
+        config._attn_implementation = attn_implementation
+    model = Qwen3MoeForCausalLM(config)
     if dtype is not None:
         model = model.to(dtype=dtype)
     return model
