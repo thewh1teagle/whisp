@@ -16,7 +16,7 @@ from tokenizers import Tokenizer
 from src.checkpoint import load_checkpoint
 from src.codec import SAMPLE_RATE, decode
 from src.phonemize import phonemize_text
-from src.tokenization import audio_id_from_token, audio_stop_token_ids, audio_token_ids, format_prompt
+from src.tokenization import DEFAULT_AUDIO_VOCAB_SIZE, format_prompt
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,28 +36,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def next_token(logits: torch.Tensor, *, temperature: float, top_p: float, top_k: int) -> int:
-    if temperature <= 0:
-        return int(logits.argmax().item())
-
-    logits = logits / temperature
-
-    if top_k > 0:
-        top_k = min(top_k, logits.numel())
-        threshold = torch.topk(logits, top_k).values[-1]
-        logits = logits.masked_fill(logits < threshold, -torch.inf)
-
-    if top_p < 1.0:
-        sorted_logits, sorted_indices = torch.sort(logits, descending=True)
-        sorted_probs = torch.softmax(sorted_logits, dim=-1)
-        remove = torch.cumsum(sorted_probs, dim=-1) > top_p
-        remove[0] = False
-        logits[sorted_indices[remove]] = -torch.inf
-
-    probs = torch.softmax(logits, dim=-1)
-    return int(torch.multinomial(probs, 1).item())
-
-
 def generate_audio_tokens(
     model: torch.nn.Module,
     tokenizer: Tokenizer,
@@ -68,29 +46,28 @@ def generate_audio_tokens(
     top_p: float,
     top_k: int,
 ) -> list[int]:
-    audio_ids = audio_token_ids(tokenizer)
-    stop_ids = audio_stop_token_ids(tokenizer)
-    if any(token_id is None for token_id in audio_ids + stop_ids):
+    audio_start = tokenizer.token_to_id("<audio_0>")
+    audio_last = tokenizer.token_to_id(f"<audio_{DEFAULT_AUDIO_VOCAB_SIZE - 1}>")
+    stop_ids = {tokenizer.token_to_id("</audio>"), tokenizer.token_to_id("</s>")}
+    if audio_start is None or audio_last is None or None in stop_ids:
         raise ValueError("Tokenizer is missing audio tokens")
-    allowed_ids = audio_ids + stop_ids
-    audio_tokens: list[int] = []
-
-    for _ in range(max_new_tokens):
-        logits = model(input_ids=input_ids).logits[0, -1]
-        masked_logits = torch.full_like(logits, -torch.inf)
-        masked_logits[allowed_ids] = logits[allowed_ids]
-
-        token_id = next_token(masked_logits, temperature=temperature, top_p=top_p, top_k=top_k)
-        if token_id in stop_ids:
-            break
-
-        audio_tokens.append(audio_id_from_token(tokenizer.id_to_token(token_id)))
-
-        token_tensor = torch.tensor([[token_id]], dtype=torch.long, device=input_ids.device)
-        input_ids = torch.cat([input_ids, token_tensor], dim=1)
-
-    usable = len(audio_tokens) - (len(audio_tokens) % 7)
-    return audio_tokens[:usable]
+    audio_end = audio_last + 1
+    allowed_ids = list(range(audio_start, audio_end)) + list(stop_ids)
+    generated = model.generate(
+        input_ids=input_ids,
+        max_new_tokens=max_new_tokens,
+        do_sample=temperature > 0,
+        temperature=temperature if temperature > 0 else None,
+        top_p=top_p,
+        top_k=top_k,
+        use_cache=True,
+        pad_token_id=tokenizer.token_to_id("<pad>"),
+        eos_token_id=list(stop_ids),
+        prefix_allowed_tokens_fn=lambda _batch_id, _input_ids: allowed_ids,
+    )
+    new_ids = generated[0, input_ids.shape[1] :].tolist()
+    audio_tokens = [token_id - audio_start for token_id in new_ids if audio_start <= token_id < audio_end]
+    return audio_tokens[: len(audio_tokens) - (len(audio_tokens) % 7)]
 
 
 def save_wav(path: Path, audio: torch.Tensor) -> None:
@@ -128,7 +105,8 @@ def main() -> None:
     if not audio_tokens:
         raise RuntimeError("Model did not generate usable audio tokens")
 
-    audio = decode(audio_tokens, device=device)
+    decode_device = torch.device("cuda" if torch.cuda.is_available() else device)
+    audio = decode(audio_tokens, device=decode_device)
     save_wav(args.output, audio)
     print(f"phonemes: {phonemes}")
     print(f"audio_tokens: {len(audio_tokens)}")
