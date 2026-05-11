@@ -54,3 +54,17 @@ https://huggingface.co/thewh1teagle/whisper-snac-tts
 ```
 
 Default training runs for `100` epochs. Stop/resume from checkpoints as needed.
+
+## Train LibriHeavy SNAC
+
+The local `libriheavy-snac/` parquet dataset is streamed with the Hugging Face
+`datasets` library. It is not loaded into memory and it is not pretokenized on
+disk.
+
+```bash
+scripts/train_libriheavy_snac.sh --max-steps 100000
+```
+
+`--num-speakers` is inferred from `libriheavy-snac/speakers/manifest.json`.
+Raw LibriHeavy speaker IDs are remapped to contiguous tokenizer IDs at startup
+from the small `speakers/` parquet set.

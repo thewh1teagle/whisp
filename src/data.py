@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from tokenizers import Tokenizer
 
+from src.libriheavy import make_libriheavy_dataset
 from src.tokenization import format_prompt, format_target
 
 
@@ -69,15 +70,28 @@ class WhispDataCollator:
 
 def make_dataloaders(args, tokenizer: Tokenizer) -> tuple[DataLoader, DataLoader]:
     collator = WhispDataCollator(pad_token_id=tokenizer.token_to_id("<pad>"))
+    dataset_format = args.dataset_format
+    if dataset_format == "auto":
+        dataset_format = "libriheavy-snac" if Path(args.train_dataset).is_dir() else "jsonl"
+
+    if dataset_format == "libriheavy-snac":
+        train_dataset = make_libriheavy_dataset(args, tokenizer, split="train")
+        eval_dataset = make_libriheavy_dataset(args, tokenizer, split="eval")
+        shuffle = False
+    else:
+        train_dataset = WhispDataset(args.train_dataset, tokenizer)
+        eval_dataset = WhispDataset(args.eval_dataset, tokenizer)
+        shuffle = True
+
     train_loader = DataLoader(
-        WhispDataset(args.train_dataset, tokenizer),
+        train_dataset,
         batch_size=args.train_batch_size,
-        shuffle=True,
+        shuffle=shuffle,
         collate_fn=collator,
         num_workers=args.dataloader_workers,
     )
     eval_loader = DataLoader(
-        WhispDataset(args.eval_dataset, tokenizer),
+        eval_dataset,
         batch_size=args.eval_batch_size,
         shuffle=False,
         collate_fn=collator,

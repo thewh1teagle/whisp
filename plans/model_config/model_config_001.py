@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+import argparse
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -13,7 +14,11 @@ from src.tokenization import build_tokenizer
 
 
 def main() -> None:
-    num_speakers = 3
+    parser = argparse.ArgumentParser(description="Print Whisp model config and parameter counts")
+    parser.add_argument("--num-speakers", type=int, default=6190)
+    args = parser.parse_args()
+
+    num_speakers = args.num_speakers
     tokenizer = build_tokenizer(num_speakers=num_speakers)
     model = build_model(num_speakers=num_speakers)
     config = model.config

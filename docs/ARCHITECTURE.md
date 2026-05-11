@@ -64,14 +64,14 @@ matching SNAC's 4096-entry codebooks.
 Current shape:
 
 ```text
-hidden_size: 640
-layers: 10
+hidden_size: 384
+layers: 12
 dense layers: 0-5
-MoE layers: 6-9
-experts: 20
-experts per token: 2
-stored params: ~230M
-active params: ~54M
+MoE layers: 6-11
+experts: 32
+experts per token: 1
+stored params: ~245M with 6,190 speakers
+active params: ~25M with 6,190 speakers
 ```
 
 ## Training

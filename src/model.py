@@ -20,16 +20,16 @@ def build_config(
 
     return Qwen3MoeConfig(
         vocab_size=vocab_size,
-        hidden_size=640,
-        intermediate_size=1280,
-        num_hidden_layers=10,
-        num_attention_heads=5,
-        num_key_value_heads=5,
+        hidden_size=384,
+        intermediate_size=1024,
+        num_hidden_layers=12,
+        num_attention_heads=6,
+        num_key_value_heads=6,
         max_position_embeddings=max_position_embeddings,
         mlp_only_layers=MLP_ONLY_LAYERS,
-        moe_intermediate_size=1280,
-        num_experts=20,
-        num_experts_per_tok=2,
+        moe_intermediate_size=1024,
+        num_experts=32,
+        num_experts_per_tok=1,
         decoder_sparse_step=1,
         rms_norm_eps=1e-6,
         rope_theta=500_000.0,
@@ -45,9 +45,14 @@ def build_model(
     *,
     num_speakers: int,
     vocab_size: int | None = None,
+    max_position_embeddings: int = 4096,
     dtype: torch.dtype | None = None,
 ) -> Qwen3MoeForCausalLM:
-    config = build_config(num_speakers=num_speakers, vocab_size=vocab_size)
+    config = build_config(
+        num_speakers=num_speakers,
+        vocab_size=vocab_size,
+        max_position_embeddings=max_position_embeddings,
+    )
     model = Qwen3MoeForCausalLM(config)
     if dtype is not None:
         model = model.to(dtype=dtype)
