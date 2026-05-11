@@ -77,7 +77,7 @@ def main() -> None:
 
     train_loader, eval_loader = make_dataloaders(args, tokenizer)
     stats = dataset_stats(args)
-    attn_implementation = "flash_attention_2" if args.flash_attention else None
+    attn_implementation = args.attn_implementation
 
     if args.resume:
         model = load_checkpoint(

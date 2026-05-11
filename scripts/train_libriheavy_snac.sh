@@ -8,6 +8,7 @@ set -euo pipefail
 RESUME=""
 RESET_STEPS=""
 EXTRA=()
+ATTN_IMPLEMENTATION="${ATTN_IMPLEMENTATION:-flash_attention_3}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -30,7 +31,7 @@ uv run accelerate launch src/train.py \
   --logging-steps 10 \
   --save-steps 500 \
   --shuffle-buffer-size 20000 \
-  --flash-attention \
+  --attn-implementation "${ATTN_IMPLEMENTATION}" \
   ${RESUME} \
   ${RESET_STEPS} \
   "${EXTRA[@]+"${EXTRA[@]}"}"
